@@ -16,7 +16,7 @@
 //! # Usage
 //!
 //! ```rust
-//! use similar_assertions::assert_eq;
+//! use similar_asserts::assert_eq;
 //! assert_eq!((1..3).collect::<Vec<_>>(), vec![1, 2]);
 //! ```
 //!
@@ -24,7 +24,7 @@
 //! side which will produce slightly more explicit output:
 //!
 //! ```rust
-//! use similar_assertions::assert_eq;
+//! use similar_asserts::assert_eq;
 //! assert_eq!(expected: vec![1, 2], actual: (1..3).collect::<Vec<_>>());
 //! ```
 //!
@@ -232,7 +232,7 @@ macro_rules! __assert_eq {
 /// message can be provided.
 ///
 /// ```rust
-/// use similar_assertions::assert_eq;
+/// use similar_asserts::assert_eq;
 /// assert_eq!((1..3).collect::<Vec<_>>(), vec![1, 2]);
 /// ```
 #[macro_export]
@@ -262,7 +262,7 @@ macro_rules! assert_eq {
 /// message can be provided.
 ///
 /// ```rust
-/// use similar_assertions::assert_serde_eq;
+/// use similar_asserts::assert_serde_eq;
 /// assert_serde_eq!((1..3).collect::<Vec<_>>(), vec![1, 2]);
 /// ```
 ///
@@ -299,7 +299,7 @@ macro_rules! assert_serde_eq {
 /// message can be provided.
 ///
 /// ```rust
-/// use similar_assertions::assert_str_eq;
+/// use similar_asserts::assert_str_eq;
 /// assert_str_eq!("foobarbaz".replace("z", "zzz"), "foobarbazzz");
 /// ```
 #[macro_export]
