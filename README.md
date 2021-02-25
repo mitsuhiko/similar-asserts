@@ -19,6 +19,11 @@ fn main() {
 
 ![](https://raw.githubusercontent.com/mitsuhiko/similar-asserts/main/assets/screenshot.png)
 
+## Related Projects
+
+* [insta](https://insta.rs) snapshot testing library
+* [similar](https://insta.rs/similar) diffing library
+
 ## License and Links
 
 - [Documentation](https://docs.rs/similar-asserts/)
