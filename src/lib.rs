@@ -13,6 +13,8 @@
 )]
 //! - [`assert_str_eq!`]: compares both sides to strings and diffs those on failure.
 //!
+//! ![](https://raw.githubusercontent.com/mitsuhiko/similar-asserts/main/assets/screenshot.png)
+//!
 //! # Usage
 //!
 //! ```rust
