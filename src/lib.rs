@@ -61,7 +61,7 @@ pub struct Diff<'a> {
 
 impl<'a> Diff<'a> {
     /// Creates a diff from two values implementing [`Debug`].
-    pub fn from_debug<Left: fmt::Debug, Right: fmt::Debug>(
+    pub fn from_debug<Left: fmt::Debug + ?Sized, Right: fmt::Debug + ?Sized>(
         left: &Left,
         right: &Right,
         left_label: &'static str,
@@ -83,7 +83,7 @@ impl<'a> Diff<'a> {
 
     /// Creates a diff from two values implementing [`Debug`].
     #[cfg(feature = "serde")]
-    pub fn from_serde<Left: serde::Serialize, Right: serde::Serialize>(
+    pub fn from_serde<Left: serde::Serialize + ?Sized, Right: serde::Serialize + ?Sized>(
         left: &Left,
         right: &Right,
         left_label: &'static str,
