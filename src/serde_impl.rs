@@ -160,7 +160,7 @@ impl<'a, 'b: 'a> SerializeSeq for SeqSerializer<'a, 'b> {
     }
 
     fn end(mut self) -> Result<(), Self::Error> {
-        Ok(self.0.finish()?)
+        self.0.finish()
     }
 }
 
@@ -176,7 +176,7 @@ impl<'a, 'b: 'a> SerializeTuple for TupleSerializer<'a, 'b> {
     }
 
     fn end(mut self) -> Result<(), Self::Error> {
-        Ok(self.0.finish()?)
+        self.0.finish()
     }
 }
 
@@ -232,7 +232,7 @@ impl<'a, 'b: 'a> SerializeMap for MapSerializer<'a, 'b> {
     }
 
     fn end(mut self) -> Result<(), Self::Error> {
-        Ok(self.0.finish()?)
+        self.0.finish()
     }
 }
 
@@ -252,7 +252,7 @@ impl<'a, 'b: 'a> SerializeStruct for StructSerializer<'a, 'b> {
     }
 
     fn end(mut self) -> Result<(), Self::Error> {
-        Ok(self.0.finish()?)
+        self.0.finish()
     }
 }
 

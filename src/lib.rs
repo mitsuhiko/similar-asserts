@@ -134,9 +134,8 @@ impl<'a> fmt::Display for Diff<'a> {
         if self.left == self.right {
             writeln!(
                 f,
-                "{}: {}",
+                "{}: the two values are the same in string form.",
                 style("Invisible differences").bold(),
-                "the two values are the same in string form."
             )?;
             return Ok(());
         }
