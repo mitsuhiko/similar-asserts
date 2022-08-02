@@ -153,7 +153,7 @@ impl<'a> fmt::Display for Diff<'a> {
             style("+").green().dim(),
             style(self.right_label).green(),
         )?;
-        for (idx, group) in diff.grouped_ops(5).into_iter().enumerate() {
+        for (idx, group) in diff.grouped_ops(4).into_iter().enumerate() {
             if idx > 0 {
                 writeln!(f, "@ {}", style("~~~").dim())?;
             }
