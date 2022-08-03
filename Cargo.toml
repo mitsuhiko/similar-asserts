@@ -9,6 +9,7 @@ repository = "https://github.com/mitsuhiko/similar-asserts"
 keywords = ["assert", "diff", "color"]
 readme = "README.md"
 exclude = ["assets/*"]
+rust-version = "1.41.0"
 
 [package.metadata.docs.rs]
 all-features = true
