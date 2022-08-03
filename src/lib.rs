@@ -11,8 +11,6 @@
 - [`assert_serde_eq!`]: diffs `Serialize` on assertion failure.
 "#
 )]
-//! - [`assert_str_eq!`]: compares both sides to strings and diffs those on failure.
-//!
 //! ![](https://raw.githubusercontent.com/mitsuhiko/similar-asserts/main/assets/screenshot.png)
 //!
 //! # Usage
@@ -73,12 +71,12 @@ mod serde_impl;
 ///
 /// It does not provide much customization beyond what's possible done by default.
 pub struct SimpleDiff<'a> {
-    left: Cow<'a, str>,
-    right: Cow<'a, str>,
-    left_short: Option<Cow<'a, str>>,
-    right_short: Option<Cow<'a, str>>,
-    left_label: &'static str,
-    right_label: &'static str,
+    pub(crate) left: Cow<'a, str>,
+    pub(crate) right: Cow<'a, str>,
+    pub(crate) left_short: Option<Cow<'a, str>>,
+    pub(crate) right_short: Option<Cow<'a, str>>,
+    pub(crate) left_label: &'static str,
+    pub(crate) right_label: &'static str,
 }
 
 impl<'a> SimpleDiff<'a> {
@@ -98,56 +96,6 @@ impl<'a> SimpleDiff<'a> {
             right: right.into(),
             left_short: None,
             right_short: None,
-            left_label,
-            right_label,
-        }
-    }
-
-    /// Creates a diff from two values implementing [`Debug`].
-    ///
-    /// This is similar to [`from_str`](Self::from_str) but first runs the
-    /// comparison through [`Debug`] for formatting.
-    pub fn from_debug<Left: fmt::Debug + ?Sized, Right: fmt::Debug + ?Sized>(
-        left: &Left,
-        right: &Right,
-        left_label: &'static str,
-        right_label: &'static str,
-    ) -> SimpleDiff<'a> {
-        let left_short = Some(format!("{:?}", left).into());
-        let right_short = Some(format!("{:?}", right).into());
-        let left = format!("{:#?}", left).into();
-        let right = format!("{:#?}", right).into();
-        SimpleDiff {
-            left,
-            right,
-            left_short,
-            right_short,
-            left_label,
-            right_label,
-        }
-    }
-
-    /// Creates a diff from two values implementing [`Debug`].
-    #[cfg(feature = "serde")]
-    #[doc(hidden)]
-    pub fn _private_from_serde<
-        Left: serde::Serialize + ?Sized,
-        Right: serde::Serialize + ?Sized,
-    >(
-        left: &Left,
-        right: &Right,
-        left_label: &'static str,
-        right_label: &'static str,
-    ) -> SimpleDiff<'a> {
-        let left_short = Some(format!("{:?}", serde_impl::Debug(left)).into());
-        let right_short = Some(format!("{:?}", serde_impl::Debug(right)).into());
-        let left = format!("{:#?}", serde_impl::Debug(left)).into();
-        let right = format!("{:#?}", serde_impl::Debug(right)).into();
-        SimpleDiff {
-            left,
-            right,
-            left_short,
-            right_short,
             left_label,
             right_label,
         }
@@ -219,6 +167,84 @@ impl<'a> fmt::Display for SimpleDiff<'a> {
     }
 }
 
+/// This hidden module is used by the macro system to figure out which
+/// implementation of the string representation to use.  The main trait is
+/// `MakeDiff` which has two primary implementations: One for `UsesFromStr`
+/// implementing types (strings) and one for all debuggable types.
+///
+/// Additionally for the serde macro there is a `MakeSerdeDiff`.  This uses
+/// the automatic deref system of Rust to disambiugate between strings and
+/// non strings.
+#[doc(hidden)]
+pub mod traits {
+    use std::borrow::Cow;
+    use std::fmt::Debug;
+
+    trait UsesFromStr: AsRef<str> {}
+
+    impl UsesFromStr for str {}
+    impl UsesFromStr for String {}
+    impl<'a> UsesFromStr for Cow<'a, str> {}
+    impl<T: UsesFromStr + ?Sized> UsesFromStr for &T {}
+
+    pub trait MakeDiff<'a> {
+        fn make_diff(
+            self,
+            left_label: &'static str,
+            right_label: &'static str,
+        ) -> crate::SimpleDiff<'a>
+        where
+            Self: 'a;
+    }
+
+    impl<'a, T: Debug, U: Debug> MakeDiff<'a> for &'a (T, U) {
+        fn make_diff(
+            self,
+            left_label: &'static str,
+            right_label: &'static str,
+        ) -> crate::SimpleDiff<'a>
+        where
+            Self: 'a,
+        {
+            let left = &self.0;
+            let right = &self.1;
+            let left_short = Some(format!("{:?}", left).into());
+            let right_short = Some(format!("{:?}", right).into());
+            let left = format!("{:#?}", left).into();
+            let right = format!("{:#?}", right).into();
+            crate::SimpleDiff {
+                left,
+                right,
+                left_short,
+                right_short,
+                left_label,
+                right_label,
+            }
+        }
+    }
+
+    impl<'a, T, U> MakeDiff<'a> for (&'a T, &'a U)
+    where
+        T: UsesFromStr + ?Sized,
+        U: UsesFromStr + ?Sized,
+    {
+        fn make_diff(
+            self,
+            left_label: &'static str,
+            right_label: &'static str,
+        ) -> crate::SimpleDiff<'a>
+        where
+            Self: 'a,
+        {
+            crate::SimpleDiff::from_str(self.0.as_ref(), self.1.as_ref(), left_label, right_label)
+        }
+    }
+
+    // if serde is compiled in, we also need `MakeSerdeDiff`.
+    #[cfg(feature = "serde")]
+    pub use super::serde_impl::MakeSerdeDiff;
+}
+
 #[doc(hidden)]
 #[macro_export]
 macro_rules! __assert_eq {
@@ -234,14 +260,11 @@ macro_rules! __assert_eq {
         match (&($left), &($right)) {
             (left_val, right_val) => {
                 if !(*left_val == *right_val) {
+                    use $crate::traits::*;
                     let left_label = stringify!($left_label);
                     let right_label = stringify!($right_label);
-                    let diff = $crate::SimpleDiff::$method(
-                        &*left_val,
-                        &*right_val,
-                        left_label,
-                        right_label,
-                    );
+                    let tup = (&*left_val, &*right_val);
+                    let diff = tup.$method(left_label, right_label);
                     panic!(
                         "assertion failed: `({} == {})`{}{}'\
                            \n {:>label_padding$}: `{:?}`\
@@ -267,8 +290,9 @@ macro_rules! __assert_eq {
 /// Asserts that two expressions are equal to each other (using [`PartialEq`]).
 ///
 /// On panic, this macro will print the values of the expressions with their
-/// debug representations with a colorized diff of the changes in the debug
-/// output.
+/// [`Debug`] or [`ToString`] representations with a colorized diff of the
+/// changes in the debug output.  It picks [`Debug`] for all types that are
+/// not strings themselves and [`ToString`] for [`str`] and [`String`].
 ///
 /// Like [`assert!`], this macro has a second form, where a custom panic
 /// message can be provided.
@@ -280,10 +304,10 @@ macro_rules! __assert_eq {
 #[macro_export]
 macro_rules! assert_eq {
     ($left_label:ident: $left:expr, $right_label:ident: $right:expr $(,)?) => ({
-        $crate::__assert_eq!(from_debug, $left_label, $left, $right_label, $right, false, "");
+        $crate::__assert_eq!(make_diff, $left_label, $left, $right_label, $right, false, "");
     });
     ($left_label:ident: $left:expr, $right_label:ident: $right:expr, $($arg:tt)*) => ({
-        $crate::__assert_eq!(from_debug, $left_label, $left, $right_label, $right, true, format_args!($($arg)*));
+        $crate::__assert_eq!(make_diff, $left_label, $left, $right_label, $right, true, format_args!($($arg)*));
     });
     ($left:expr, $right:expr $(,)?) => ({
         $crate::assert_eq!(left: $left, right: $right);
@@ -293,7 +317,7 @@ macro_rules! assert_eq {
     });
 }
 
-/// Asserts that two expressions are equal to each other (using [`PartialEq`]).
+/// Asserts that two expressions are equal to each other (using [`PartialEq`]) using [`Serialize`](serde::Serialize) for comparision.
 ///
 /// On panic, this macro will print the values of the expressions with their
 /// serde [`Serialize`](serde::Serialize) representations rendered in the same
@@ -313,10 +337,10 @@ macro_rules! assert_eq {
 #[cfg(feature = "serde")]
 macro_rules! assert_serde_eq {
     ($left_label:ident: $left:expr, $right_label:ident: $right:expr $(,)?) => ({
-        $crate::__assert_eq!(_private_from_serde, $left_label, $left, $right_label, $right, false, "");
+        $crate::__assert_eq!(make_serde_diff, $left_label, $left, $right_label, $right, false, "");
     });
     ($left_label:ident: $left:expr, $right_label:ident: $right:expr, $($arg:tt)*) => ({
-        $crate::__assert_eq!(_private_from_serde, $left_label, $left, $right_label, $right, true, format_args!($($arg)*));
+        $crate::__assert_eq!(make_serde_diff, $left_label, $left, $right_label, $right, true, format_args!($($arg)*));
     });
     ($left:expr, $right:expr $(,)?) => ({
         $crate::assert_serde_eq!(left: $left, right: $right);
@@ -326,48 +350,21 @@ macro_rules! assert_serde_eq {
     });
 }
 
-/// Asserts that two stringified expressions are equal to each other
-/// (using [`PartialEq`]).
-///
-/// This works similar to [`assert_eq!`] but before comparing the values they
-/// are stringified via [`ToString`].  This also uses a slightly different
-/// comparison display that is better optimized for normal strings.
-///
-/// On panic, this macro will print the values of the expressions with their
-/// debug representations with a colorized diff of the changes in the debug
-/// output.
-///
-/// Like [`assert!`], this macro has a second form, where a custom panic
-/// message can be provided.
-///
-/// ```rust
-/// use similar_asserts::assert_str_eq;
-/// assert_str_eq!("foobarbaz".replace("z", "zzz"), "foobarbazzz");
-/// ```
+/// Deprecated macro.  Use [`assert_eq!`] instead.
 #[macro_export]
+#[doc(hidden)]
+#[deprecated(since = "1.4.0", note = "use assert_eq! instead")]
 macro_rules! assert_str_eq {
     ($left_label:ident: $left:expr, $right_label:ident: $right:expr $(,)?) => ({
-        match (&($left), &($right)) {
-            (left_val, right_val) => {
-                let left_val = left_val.to_string();
-                let right_val = right_val.to_string();
-                $crate::__assert_eq!(from_str, $left_label, left_val, $right_label, right_val, false, "");
-            }
-        }
+        $crate::assert_eq!($left_label: $left, $right_label: $right);
     });
     ($left_label:ident: $left:expr, $right_label:ident: $right:expr, $($arg:tt)*) => ({
-        match (&($left), &($right)) {
-            (left_val, right_val) => {
-                let left_val = left_val.to_string();
-                let right_val = right_val.to_string();
-                $crate::__assert_eq!(from_str, $left_label, left_val, $right_label, right_val, true, format_args!($($arg)*));
-            }
-        }
+        $crate::assert_eq!($left_label: $left, $right_label: $right, $($arg)*);
     });
     ($left:expr, $right:expr $(,)?) => ({
-        $crate::assert_str_eq!(left: $left, right: $right);
+        $crate::assert_eq!($left, $right);
     });
     ($left:expr, $right:expr, $($arg:tt)*) => ({
-        $crate::assert_str_eq!(left: $left, right: $right, $($arg)*);
+        $crate::assert_eq!($left, $right, $($arg)*);
     });
 }

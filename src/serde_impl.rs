@@ -6,6 +6,8 @@ use serde::ser::{
 };
 use serde::{Serialize, Serializer};
 
+use crate::SimpleDiff;
+
 pub struct Debug<'a, T: Serialize + ?Sized>(pub &'a T);
 
 impl<'a, T: Serialize + ?Sized> fmt::Debug for Debug<'a, T> {
@@ -270,5 +272,37 @@ impl<'a, 'b: 'a> SerializeStructVariant for StructSerializer<'a, 'b> {
 
     fn end(self) -> Result<(), Self::Error> {
         SerializeStruct::end(self)
+    }
+}
+
+pub trait MakeSerdeDiff<'a> {
+    fn make_serde_diff(self, left_label: &'static str, right_label: &'static str) -> SimpleDiff<'a>
+    where
+        Self: 'a;
+}
+
+impl<'a, T, U> MakeSerdeDiff<'a> for (&'a T, &'a U)
+where
+    T: Serialize + ?Sized,
+    U: Serialize + ?Sized,
+{
+    fn make_serde_diff(self, left_label: &'static str, right_label: &'static str) -> SimpleDiff<'a>
+    where
+        Self: 'a,
+    {
+        let left = &self.0;
+        let right = &self.1;
+        let left_short = Some(format!("{:?}", Debug(left)).into());
+        let right_short = Some(format!("{:?}", Debug(right)).into());
+        let left = format!("{:#?}", Debug(left)).into();
+        let right = format!("{:#?}", Debug(right)).into();
+        SimpleDiff {
+            left,
+            right,
+            left_short,
+            right_short,
+            left_label,
+            right_label,
+        }
     }
 }
