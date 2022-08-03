@@ -114,8 +114,65 @@ impl<'a> SimpleDiff<'a> {
     }
 }
 
+fn trailing_newline(s: &str) -> &str {
+    if let Some(_) = s.strip_suffix("\r\n") {
+        "\r\n"
+    } else if let Some(_) = s.strip_suffix("\r") {
+        "\r"
+    } else if let Some(_) = s.strip_suffix("\n") {
+        "\n"
+    } else {
+        ""
+    }
+}
+
+fn detect_newlines(s: &str) -> (bool, bool, bool) {
+    let mut last_char = None;
+    let mut detected_crlf = false;
+    let mut detected_cr = false;
+    let mut detected_lf = false;
+
+    for c in s.chars() {
+        if c == '\n' {
+            if last_char.take() == Some('\r') {
+                detected_crlf = true;
+            } else {
+                detected_lf = true;
+            }
+        }
+        if last_char == Some('\r') {
+            detected_cr = true;
+        }
+        last_char = Some(c);
+    }
+    if last_char == Some('\r') {
+        detected_cr = true;
+    }
+
+    (detected_cr, detected_crlf, detected_lf)
+}
+
+fn newlines_matter(left: &str, right: &str) -> bool {
+    if trailing_newline(left) != trailing_newline(right) {
+        return true;
+    }
+
+    let (cr1, crlf1, lf1) = detect_newlines(left);
+    let (cr2, crlf2, lf2) = detect_newlines(right);
+
+    match (cr1 || cr2, crlf1 || crlf2, lf1 || lf2) {
+        (false, false, false) => false,
+        (true, false, false) => false,
+        (false, true, false) => false,
+        (false, false, true) => false,
+        _ => true,
+    }
+}
+
 impl<'a> fmt::Display for SimpleDiff<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let newlines_matter = newlines_matter(&self.left, &self.right);
+
         if self.left == self.right {
             writeln!(
                 f,
@@ -129,6 +186,7 @@ impl<'a> fmt::Display for SimpleDiff<'a> {
             .timeout(Duration::from_millis(200))
             .algorithm(Algorithm::Patience)
             .diff_lines(&self.left, &self.right);
+
         writeln!(
             f,
             "{} ({}{}|{}{}):",
@@ -151,6 +209,16 @@ impl<'a> fmt::Display for SimpleDiff<'a> {
                     };
                     write!(f, "{}", style.apply_to(marker).dim().bold())?;
                     for &(emphasized, value) in change.values() {
+                        let value = if newlines_matter {
+                            Cow::Owned(
+                                value
+                                    .replace("\r", "␍\r")
+                                    .replace("\n", "␊\n")
+                                    .replace("␍\r␊\n", "␍␊\r\n"),
+                            )
+                        } else {
+                            Cow::Borrowed(value)
+                        };
                         if emphasized {
                             write!(f, "{}", style.clone().underlined().bold().apply_to(value))?;
                         } else {
@@ -163,6 +231,7 @@ impl<'a> fmt::Display for SimpleDiff<'a> {
                 }
             }
         }
+
         Ok(())
     }
 }
@@ -367,4 +436,21 @@ macro_rules! assert_str_eq {
     ($left:expr, $right:expr, $($arg:tt)*) => ({
         $crate::assert_eq!($left, $right, $($arg)*);
     });
+}
+
+#[test]
+fn test_newlines_matter() {
+    assert!(newlines_matter("\r\n", "\n"));
+    assert!(newlines_matter("foo\n", "foo"));
+    assert!(newlines_matter("foo\r\nbar", "foo\rbar"));
+    assert!(newlines_matter("foo\r\nbar", "foo\nbar"));
+    assert!(newlines_matter("foo\r\nbar\n", "foobar"));
+    assert!(newlines_matter("foo\nbar\r\n", "foo\nbar\r\n"));
+    assert!(newlines_matter("foo\nbar\n", "foo\nbar"));
+
+    assert!(!newlines_matter("foo\nbar", "foo\nbar"));
+    assert!(!newlines_matter("foo\nbar\n", "foo\nbar\n"));
+    assert!(!newlines_matter("foo\r\nbar", "foo\r\nbar"));
+    assert!(!newlines_matter("foo\r\nbar\r\n", "foo\r\nbar\r\n"));
+    assert!(!newlines_matter("foo\r\nbar", "foo\r\nbar"));
 }
