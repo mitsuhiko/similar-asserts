@@ -49,8 +49,7 @@ mod serde_impl;
 /// The [`Display`](std::fmt::Display) implementation of this type renders out a
 /// diff with ANSI markers so it creates a nice colored diff. This can be used to
 /// build your own custom assertions in addition to the ones from this crate.
-#[doc(hidden)]
-pub struct Diff<'a> {
+pub struct SimpleDiff<'a> {
     left: Cow<'a, str>,
     right: Cow<'a, str>,
     left_short: Option<Cow<'a, str>>,
@@ -59,19 +58,19 @@ pub struct Diff<'a> {
     right_label: &'static str,
 }
 
-impl<'a> Diff<'a> {
+impl<'a> SimpleDiff<'a> {
     /// Creates a diff from two values implementing [`Debug`].
     pub fn from_debug<Left: fmt::Debug + ?Sized, Right: fmt::Debug + ?Sized>(
         left: &Left,
         right: &Right,
         left_label: &'static str,
         right_label: &'static str,
-    ) -> Diff<'a> {
+    ) -> SimpleDiff<'a> {
         let left_short = Some(format!("{:?}", left).into());
         let right_short = Some(format!("{:?}", right).into());
         let left = format!("{:#?}", left).into();
         let right = format!("{:#?}", right).into();
-        Diff {
+        SimpleDiff {
             left,
             right,
             left_short,
@@ -88,7 +87,7 @@ impl<'a> Diff<'a> {
         right: &Right,
         left_label: &'static str,
         right_label: &'static str,
-    ) -> Diff<'a> {
+    ) -> SimpleDiff<'a> {
         let left_short = Some(format!("{:?}", serde_impl::Debug(left)).into());
         let right_short = Some(format!("{:?}", serde_impl::Debug(right)).into());
         let left = format!("{:#?}", serde_impl::Debug(left)).into();
@@ -109,8 +108,8 @@ impl<'a> Diff<'a> {
         right: &'a str,
         left_label: &'static str,
         right_label: &'static str,
-    ) -> Diff<'a> {
-        Diff {
+    ) -> SimpleDiff<'a> {
+        SimpleDiff {
             left: left.into(),
             right: right.into(),
             left_short: None,
@@ -120,16 +119,18 @@ impl<'a> Diff<'a> {
         }
     }
 
+    /// Returns the left side as string.
     pub fn left(&self) -> &str {
         self.left_short.as_deref().unwrap_or(&self.left)
     }
 
+    /// Returns the right side as string.
     pub fn right(&self) -> &str {
         self.right_short.as_deref().unwrap_or(&self.right)
     }
 }
 
-impl<'a> fmt::Display for Diff<'a> {
+impl<'a> fmt::Display for SimpleDiff<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         if self.left == self.right {
             writeln!(
@@ -199,8 +200,12 @@ macro_rules! __assert_eq {
                 if !(*left_val == *right_val) {
                     let left_label = stringify!($left_label);
                     let right_label = stringify!($right_label);
-                    let diff =
-                        $crate::Diff::$method(&*left_val, &*right_val, left_label, right_label);
+                    let diff = $crate::SimpleDiff::$method(
+                        &*left_val,
+                        &*right_val,
+                        left_label,
+                        right_label,
+                    );
                     panic!(
                         "assertion failed: `({} == {})`{}{}'\
                            \n {:>label_padding$}: `{:?}`\
