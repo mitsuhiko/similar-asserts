@@ -180,7 +180,7 @@ pub mod traits {
     use std::borrow::Cow;
     use std::fmt::Debug;
 
-    trait UsesFromStr: AsRef<str> {}
+    pub trait UsesFromStr: AsRef<str> {}
 
     impl UsesFromStr for str {}
     impl UsesFromStr for String {}
