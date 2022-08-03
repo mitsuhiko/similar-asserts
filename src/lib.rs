@@ -115,11 +115,11 @@ impl<'a> SimpleDiff<'a> {
 }
 
 fn trailing_newline(s: &str) -> &str {
-    if let Some(_) = s.strip_suffix("\r\n") {
+    if s.ends_with("\r\n") {
         "\r\n"
-    } else if let Some(_) = s.strip_suffix("\r") {
+    } else if s.ends_with("\r") {
         "\r"
-    } else if let Some(_) = s.strip_suffix("\n") {
+    } else if s.ends_with("\n") {
         "\n"
     } else {
         ""
