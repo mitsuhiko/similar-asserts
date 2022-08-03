@@ -34,6 +34,27 @@
 //!
 //! * `unicode` enable improved character matching (enabled by default)
 //! * `serde` turns on support for serde.
+//!
+//! # Faster Builds
+//!
+//! This crate works best if you add it as `dev-dependency` only.  To make your code
+//! still compile you can use conditional uses that override the default uses for the
+//! `assert_eq!` macro from the stdlib:
+//!
+//! ```
+//! #[cfg(test)]
+//! use similar_asserts::assert_eq;
+//! ```
+//!
+//! # Manual Diff Printing
+//!
+//! If you want to build your own comparison macros and you need a quick and simple
+//! way to render diffs, you can use the [`SimpleDiff`] type and display it:
+//!
+//! ```should_panic
+//! use similar_asserts::SimpleDiff;
+//! panic!("Not equal\n\n{}", SimpleDiff::from_str("a\nb\n", "b\nb\n", "left", "right"));
+//! ```
 use std::borrow::Cow;
 use std::fmt;
 use std::time::Duration;
@@ -49,6 +70,8 @@ mod serde_impl;
 /// The [`Display`](std::fmt::Display) implementation of this type renders out a
 /// diff with ANSI markers so it creates a nice colored diff. This can be used to
 /// build your own custom assertions in addition to the ones from this crate.
+///
+/// It does not provide much customization beyond what's possible done by default.
 pub struct SimpleDiff<'a> {
     left: Cow<'a, str>,
     right: Cow<'a, str>,
@@ -59,7 +82,31 @@ pub struct SimpleDiff<'a> {
 }
 
 impl<'a> SimpleDiff<'a> {
+    /// Creates a diff from two strings.
+    ///
+    /// `left_label` and `right_label` are the labels used for the two sides.
+    /// `"left"` and `"right"` are sensible defaults if you don't know what
+    /// to pick.
+    pub fn from_str(
+        left: &'a str,
+        right: &'a str,
+        left_label: &'static str,
+        right_label: &'static str,
+    ) -> SimpleDiff<'a> {
+        SimpleDiff {
+            left: left.into(),
+            right: right.into(),
+            left_short: None,
+            right_short: None,
+            left_label,
+            right_label,
+        }
+    }
+
     /// Creates a diff from two values implementing [`Debug`].
+    ///
+    /// This is similar to [`from_str`](Self::from_str) but first runs the
+    /// comparison through [`Debug`] for formatting.
     pub fn from_debug<Left: fmt::Debug + ?Sized, Right: fmt::Debug + ?Sized>(
         left: &Left,
         right: &Right,
@@ -82,7 +129,11 @@ impl<'a> SimpleDiff<'a> {
 
     /// Creates a diff from two values implementing [`Debug`].
     #[cfg(feature = "serde")]
-    pub fn from_serde<Left: serde::Serialize + ?Sized, Right: serde::Serialize + ?Sized>(
+    #[doc(hidden)]
+    pub fn _private_from_serde<
+        Left: serde::Serialize + ?Sized,
+        Right: serde::Serialize + ?Sized,
+    >(
         left: &Left,
         right: &Right,
         left_label: &'static str,
@@ -92,7 +143,7 @@ impl<'a> SimpleDiff<'a> {
         let right_short = Some(format!("{:?}", serde_impl::Debug(right)).into());
         let left = format!("{:#?}", serde_impl::Debug(left)).into();
         let right = format!("{:#?}", serde_impl::Debug(right)).into();
-        Diff {
+        SimpleDiff {
             left,
             right,
             left_short,
@@ -102,30 +153,15 @@ impl<'a> SimpleDiff<'a> {
         }
     }
 
-    /// Creates a diff from two strings.
-    pub fn from_str(
-        left: &'a str,
-        right: &'a str,
-        left_label: &'static str,
-        right_label: &'static str,
-    ) -> SimpleDiff<'a> {
-        SimpleDiff {
-            left: left.into(),
-            right: right.into(),
-            left_short: None,
-            right_short: None,
-            left_label,
-            right_label,
-        }
-    }
-
     /// Returns the left side as string.
-    pub fn left(&self) -> &str {
+    #[doc(hidden)]
+    pub fn _private_left(&self) -> &str {
         self.left_short.as_deref().unwrap_or(&self.left)
     }
 
     /// Returns the right side as string.
-    pub fn right(&self) -> &str {
+    #[doc(hidden)]
+    pub fn _private_right(&self) -> &str {
         self.right_short.as_deref().unwrap_or(&self.right)
     }
 }
@@ -216,9 +252,9 @@ macro_rules! __assert_eq {
                         if $has_hint { ": " } else { "" },
                         $hint_suffix,
                         left_label,
-                        diff.left(),
+                        diff._private_left(),
                         right_label,
-                        diff.right(),
+                        diff._private_right(),
                         &diff,
                         label_padding = left_label.chars().count().max(right_label.chars().count())
                     );
@@ -277,10 +313,10 @@ macro_rules! assert_eq {
 #[cfg(feature = "serde")]
 macro_rules! assert_serde_eq {
     ($left_label:ident: $left:expr, $right_label:ident: $right:expr $(,)?) => ({
-        $crate::__assert_eq!(from_serde, $left_label, $left, $right_label, $right, false, "");
+        $crate::__assert_eq!(_private_from_serde, $left_label, $left, $right_label, $right, false, "");
     });
     ($left_label:ident: $left:expr, $right_label:ident: $right:expr, $($arg:tt)*) => ({
-        $crate::__assert_eq!(from_serde, $left_label, $left, $right_label, $right, true, format_args!($($arg)*));
+        $crate::__assert_eq!(_private_from_serde, $left_label, $left, $right_label, $right, true, format_args!($($arg)*));
     });
     ($left:expr, $right:expr $(,)?) => ({
         $crate::assert_serde_eq!(left: $left, right: $right);
