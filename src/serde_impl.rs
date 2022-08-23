@@ -6,8 +6,6 @@ use serde::ser::{
 };
 use serde::{Serialize, Serializer};
 
-use crate::SimpleDiff;
-
 pub struct Debug<'a, T: Serialize + ?Sized>(pub &'a T);
 
 impl<'a, T: Serialize + ?Sized> fmt::Debug for Debug<'a, T> {
@@ -275,34 +273,74 @@ impl<'a, 'b: 'a> SerializeStructVariant for StructSerializer<'a, 'b> {
     }
 }
 
-pub trait MakeSerdeDiff<'a> {
-    fn make_serde_diff(self, left_label: &'static str, right_label: &'static str) -> SimpleDiff<'a>
-    where
-        Self: 'a;
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __assert_serde_eq {
+    (
+        $method:ident,
+        $left_label:ident,
+        $left:expr,
+        $right_label:ident,
+        $right:expr,
+        $hint_suffix:expr
+    ) => {{
+        match (&($left), &($right)) {
+            (left_val, right_val) =>
+            {
+                #[allow(unused_mut)]
+                if !(*left_val == *right_val) {
+                    use std::borrow::Cow;
+                    use $crate::serde_impl::Debug;
+                    let left_label = stringify!($left_label);
+                    let right_label = stringify!($right_label);
+                    let left_short = Some(Cow::Owned(format!("{:?}", Debug(left_val))));
+                    let right_short = Some(Cow::Owned(format!("{:?}", Debug(right_val))));
+                    let left_expanded = Some(Cow::Owned(format!("{:#?}", Debug(left_val))));
+                    let right_expanded = Some(Cow::Owned(format!("{:#?}", Debug(right_val))));
+                    let diff = $crate::SimpleDiff::__from_macro(
+                        left_short,
+                        right_short,
+                        left_expanded,
+                        right_expanded,
+                        left_label,
+                        right_label,
+                    );
+                    diff.fail_assertion(&$hint_suffix);
+                }
+            }
+        }
+    }};
 }
 
-impl<'a, T, U> MakeSerdeDiff<'a> for (&'a T, &'a U)
-where
-    T: Serialize + ?Sized,
-    U: Serialize + ?Sized,
-{
-    fn make_serde_diff(self, left_label: &'static str, right_label: &'static str) -> SimpleDiff<'a>
-    where
-        Self: 'a,
-    {
-        let left = &self.0;
-        let right = &self.1;
-        let left_short = Some(format!("{:?}", Debug(left)).into());
-        let right_short = Some(format!("{:?}", Debug(right)).into());
-        let left = format!("{:#?}", Debug(left)).into();
-        let right = format!("{:#?}", Debug(right)).into();
-        SimpleDiff {
-            left,
-            right,
-            left_short,
-            right_short,
-            left_label,
-            right_label,
-        }
-    }
+/// Asserts that two expressions are equal to each other (using [`PartialEq`]) using [`Serialize`](serde::Serialize) for comparision.
+///
+/// On panic, this macro will print the values of the expressions with their
+/// serde [`Serialize`](serde::Serialize) representations rendered in the same
+/// format that [`std::fmt::Debug`] would with a colorized diff of the changes in
+/// the debug output.
+///
+/// Like [`assert!`], this macro has a second form, where a custom panic
+/// message can be provided.
+///
+/// ```rust
+/// use similar_asserts::assert_serde_eq;
+/// assert_serde_eq!((1..3).collect::<Vec<_>>(), vec![1, 2]);
+/// ```
+///
+/// This requires the `serde` feature.
+#[macro_export]
+#[cfg(feature = "serde")]
+macro_rules! assert_serde_eq {
+    ($left_label:ident: $left:expr, $right_label:ident: $right:expr $(,)?) => ({
+        $crate::__assert_serde_eq!(make_serde_diff, $left_label, $left, $right_label, $right, "");
+    });
+    ($left_label:ident: $left:expr, $right_label:ident: $right:expr, $($arg:tt)*) => ({
+        $crate::__assert_serde_eq!(make_serde_diff, $left_label, $left, $right_label, $right, format_args!(": {}", format_args!($($arg)*)));
+    });
+    ($left:expr, $right:expr $(,)?) => ({
+        $crate::assert_serde_eq!(left: $left, right: $right);
+    });
+    ($left:expr, $right:expr, $($arg:tt)*) => ({
+        $crate::assert_serde_eq!(left: $left, right: $right, $($arg)*);
+    });
 }
