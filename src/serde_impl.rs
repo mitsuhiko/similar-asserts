@@ -285,9 +285,7 @@ macro_rules! __assert_serde_eq {
         $hint_suffix:expr
     ) => {{
         match (&($left), &($right)) {
-            (left_val, right_val) =>
-            {
-                #[allow(unused_mut)]
+            (left_val, right_val) => {
                 if !(*left_val == *right_val) {
                     use std::borrow::Cow;
                     use $crate::serde_impl::Debug;
