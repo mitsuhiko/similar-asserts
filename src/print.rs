@@ -44,7 +44,15 @@ impl<'a, 'b: 'a, T: Debug + 'a> PrintObject<'a> for &'b (T,) {
 
 impl<'a, 'b: 'a, T: 'a> PrintObject<'a> for &'b mut (T,) {
     fn print_object(self, _mode: PrintMode) -> Option<Cow<'a, str>> {
-        None
+        fn type_name_of_val<T>(_: T) -> &'static str {
+            std::any::type_name::<T>()
+        }
+        let s = type_name_of_val(&self.0).trim_start_matches('&');
+        if s.is_empty() {
+            None
+        } else {
+            Some(Cow::Borrowed(s))
+        }
     }
 }
 
@@ -71,8 +79,14 @@ fn test_object() {
         }
     }
 
-    assert_eq!(print_object!(&DoNotCallMe, Default).as_deref(), None);
-    assert_eq!(print_object!(&NoDebugNoString, Default).as_deref(), None);
+    assert_eq!(
+        print_object!(&DoNotCallMe, Default).as_deref(),
+        Some("similar_asserts::print::test_object::DoNotCallMe")
+    );
+    assert_eq!(
+        print_object!(&NoDebugNoString, Default).as_deref(),
+        Some("similar_asserts::print::test_object::NoDebugNoString")
+    );
     assert_eq!(
         print_object!(vec![1, 2, 3], Default).as_deref(),
         Some("[1, 2, 3]")
