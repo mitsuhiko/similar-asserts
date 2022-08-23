@@ -63,6 +63,10 @@ use similar::{Algorithm, ChangeTag, TextDiff};
 #[cfg(feature = "serde")]
 mod serde_impl;
 
+// This needs to be public as we are using it internally in a macro.
+#[doc(hidden)]
+pub mod print;
+
 /// A console printable diff.
 ///
 /// The [`Display`](std::fmt::Display) implementation of this type renders out a
@@ -71,10 +75,10 @@ mod serde_impl;
 ///
 /// It does not provide much customization beyond what's possible done by default.
 pub struct SimpleDiff<'a> {
-    pub(crate) left: Cow<'a, str>,
-    pub(crate) right: Cow<'a, str>,
-    pub(crate) left_short: Option<Cow<'a, str>>,
-    pub(crate) right_short: Option<Cow<'a, str>>,
+    pub(crate) left_short: Cow<'a, str>,
+    pub(crate) right_short: Cow<'a, str>,
+    pub(crate) left_expanded: Option<Cow<'a, str>>,
+    pub(crate) right_expanded: Option<Cow<'a, str>>,
     pub(crate) left_label: &'static str,
     pub(crate) right_label: &'static str,
 }
@@ -92,10 +96,29 @@ impl<'a> SimpleDiff<'a> {
         right_label: &'static str,
     ) -> SimpleDiff<'a> {
         SimpleDiff {
-            left: left.into(),
-            right: right.into(),
-            left_short: None,
-            right_short: None,
+            left_short: left.into(),
+            right_short: right.into(),
+            left_expanded: None,
+            right_expanded: None,
+            left_label,
+            right_label,
+        }
+    }
+
+    #[doc(hidden)]
+    pub fn __from_macro(
+        left_short: Option<Cow<'a, str>>,
+        right_short: Option<Cow<'a, str>>,
+        left_expanded: Option<Cow<'a, str>>,
+        right_expanded: Option<Cow<'a, str>>,
+        left_label: &'static str,
+        right_label: &'static str,
+    ) -> SimpleDiff<'a> {
+        SimpleDiff {
+            left_short: left_short.unwrap_or_else(|| "<unprintable object>".into()),
+            right_short: right_short.unwrap_or_else(|| "<unprintable object>".into()),
+            left_expanded: left_expanded.map(|x| x.into()),
+            right_expanded: right_expanded.map(|x| x.into()),
             left_label,
             right_label,
         }
@@ -104,13 +127,13 @@ impl<'a> SimpleDiff<'a> {
     /// Returns the left side as string.
     #[doc(hidden)]
     pub fn _private_left(&self) -> &str {
-        self.left_short.as_deref().unwrap_or(&self.left)
+        self.left_expanded.as_deref().unwrap_or(&self.left_short)
     }
 
     /// Returns the right side as string.
     #[doc(hidden)]
     pub fn _private_right(&self) -> &str {
-        self.right_short.as_deref().unwrap_or(&self.right)
+        self.right_expanded.as_deref().unwrap_or(&self.right_short)
     }
 }
 
@@ -171,9 +194,11 @@ fn newlines_matter(left: &str, right: &str) -> bool {
 
 impl<'a> fmt::Display for SimpleDiff<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let newlines_matter = newlines_matter(&self.left, &self.right);
+        let left = self._private_left();
+        let right = self._private_right();
+        let newlines_matter = newlines_matter(left, right);
 
-        if self.left == self.right {
+        if left == right {
             writeln!(
                 f,
                 "{}: the two values are the same in string form.",
@@ -185,7 +210,7 @@ impl<'a> fmt::Display for SimpleDiff<'a> {
         let diff = TextDiff::configure()
             .timeout(Duration::from_millis(200))
             .algorithm(Algorithm::Patience)
-            .diff_lines(&self.left, &self.right);
+            .diff_lines(left, right);
 
         writeln!(
             f,
@@ -236,84 +261,6 @@ impl<'a> fmt::Display for SimpleDiff<'a> {
     }
 }
 
-/// This hidden module is used by the macro system to figure out which
-/// implementation of the string representation to use.  The main trait is
-/// `MakeDiff` which has two primary implementations: One for `UsesFromStr`
-/// implementing types (strings) and one for all debuggable types.
-///
-/// Additionally for the serde macro there is a `MakeSerdeDiff`.  This uses
-/// the automatic deref system of Rust to disambiugate between strings and
-/// non strings.
-#[doc(hidden)]
-pub mod traits {
-    use std::borrow::Cow;
-    use std::fmt::Debug;
-
-    pub trait UsesFromStr: AsRef<str> {}
-
-    impl UsesFromStr for str {}
-    impl UsesFromStr for String {}
-    impl<'a> UsesFromStr for Cow<'a, str> {}
-    impl<T: UsesFromStr + ?Sized> UsesFromStr for &T {}
-
-    pub trait MakeDiff<'a> {
-        fn make_diff(
-            self,
-            left_label: &'static str,
-            right_label: &'static str,
-        ) -> crate::SimpleDiff<'a>
-        where
-            Self: 'a;
-    }
-
-    impl<'a, T: Debug, U: Debug> MakeDiff<'a> for &'a (T, U) {
-        fn make_diff(
-            self,
-            left_label: &'static str,
-            right_label: &'static str,
-        ) -> crate::SimpleDiff<'a>
-        where
-            Self: 'a,
-        {
-            let left = &self.0;
-            let right = &self.1;
-            let left_short = Some(format!("{:?}", left).into());
-            let right_short = Some(format!("{:?}", right).into());
-            let left = format!("{:#?}", left).into();
-            let right = format!("{:#?}", right).into();
-            crate::SimpleDiff {
-                left,
-                right,
-                left_short,
-                right_short,
-                left_label,
-                right_label,
-            }
-        }
-    }
-
-    impl<'a, T, U> MakeDiff<'a> for (&'a T, &'a U)
-    where
-        T: UsesFromStr + ?Sized,
-        U: UsesFromStr + ?Sized,
-    {
-        fn make_diff(
-            self,
-            left_label: &'static str,
-            right_label: &'static str,
-        ) -> crate::SimpleDiff<'a>
-        where
-            Self: 'a,
-        {
-            crate::SimpleDiff::from_str(self.0.as_ref(), self.1.as_ref(), left_label, right_label)
-        }
-    }
-
-    // if serde is compiled in, we also need `MakeSerdeDiff`.
-    #[cfg(feature = "serde")]
-    pub use super::serde_impl::MakeSerdeDiff;
-}
-
 #[doc(hidden)]
 #[macro_export]
 macro_rules! __assert_eq {
@@ -329,11 +276,25 @@ macro_rules! __assert_eq {
         match (&($left), &($right)) {
             (left_val, right_val) => {
                 if !(*left_val == *right_val) {
-                    use $crate::traits::*;
+                    use $crate::print::{PrintMode, PrintObject};
                     let left_label = stringify!($left_label);
                     let right_label = stringify!($right_label);
-                    let tup = (&*left_val, &*right_val);
-                    let diff = tup.$method(left_label, right_label);
+                    let mut left_val_tup1 = (&left_val,);
+                    let mut right_val_tup1 = (&right_val,);
+                    let mut left_val_tup2 = (&left_val,);
+                    let mut right_val_tup2 = (&right_val,);
+                    let left_short = left_val_tup1.print_object(PrintMode::Default);
+                    let right_short = right_val_tup1.print_object(PrintMode::Default);
+                    let left_expanded = left_val_tup2.print_object(PrintMode::Expanded);
+                    let right_expanded = right_val_tup2.print_object(PrintMode::Expanded);
+                    let diff = $crate::SimpleDiff::__from_macro(
+                        left_short,
+                        right_short,
+                        left_expanded,
+                        right_expanded,
+                        left_label,
+                        right_label,
+                    );
                     panic!(
                         "assertion failed: `({} == {})`{}{}'\
                            \n {:>label_padding$}: `{:?}`\
