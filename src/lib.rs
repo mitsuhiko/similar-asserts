@@ -44,6 +44,15 @@
 //! use similar_asserts::assert_eq;
 //! ```
 //!
+//! Since `similar_asserts` uses the `similar` library for diffing you can also
+//! enable optimziation for them in all build types for quicker diffing.  Add
+//! this to your `Cargo.toml`:
+//!
+//! ```toml
+//! [profile.dev.package.similar]
+//! opt-level = 3
+//! ```
+//!
 //! # Manual Diff Printing
 //!
 //! If you want to build your own comparison macros and you need a quick and simple
