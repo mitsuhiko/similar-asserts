@@ -1,6 +1,6 @@
 [package]
 name = "similar-asserts"
-version = "1.4.2"
+version = "1.5.0"
 authors = ["Armin Ronacher <armin.ronacher@active-4.com>"]
 edition = "2018"
 license = "Apache-2.0"
@@ -11,17 +11,22 @@ readme = "README.md"
 exclude = ["assets/*"]
 rust-version = "1.46.0"
 
+[workspace]
+members = [".", "similar-asserts-macros"]
+
 [package.metadata.docs.rs]
 all-features = true
 
 [features]
 default = ["unicode"]
 unicode = ["similar/unicode"]
+magic = ["similar-asserts-macros"]
 
 [dependencies]
 similar = { version = "2.2.0", features = ["inline"] }
 console = { version = "0.15.0", default-features = false }
 serde = { version = "1.0.123", optional = true }
+similar-asserts-macros = { version = "1.5.0", optional = true, path = "similar-asserts-macros" }
 
 [dev-dependencies]
 serde = { version = "1.0.123", features = ["derive"] }
@@ -29,3 +34,7 @@ serde = { version = "1.0.123", features = ["derive"] }
 [[example]]
 name = "serde"
 required-features = ["serde"]
+
+[[example]]
+name = "magic"
+required-features = ["magic"]

@@ -291,6 +291,8 @@ macro_rules! __assert_serde_eq {
                     use $crate::serde_impl::Debug;
                     let left_label = stringify!($left_label);
                     let right_label = stringify!($right_label);
+                    let left_expr = $crate::__stringify!($left);
+                    let right_expr = $crate::__stringify!($right);
                     let left_short = Some(Cow::Owned(format!("{:?}", Debug(left_val))));
                     let right_short = Some(Cow::Owned(format!("{:?}", Debug(right_val))));
                     let left_expanded = Some(Cow::Owned(format!("{:#?}", Debug(left_val))));
@@ -302,6 +304,8 @@ macro_rules! __assert_serde_eq {
                         right_expanded,
                         left_label,
                         right_label,
+                        left_expr,
+                        right_expr,
                     );
                     diff.fail_assertion(&$hint_suffix);
                 }

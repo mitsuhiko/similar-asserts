@@ -73,6 +73,10 @@ use similar::{Algorithm, ChangeTag, TextDiff};
 #[doc(hidden)]
 pub mod serde_impl;
 
+#[cfg(feature = "magic")]
+#[doc(hidden)]
+pub mod magic;
+
 // This needs to be public as we are using it internally in a macro.
 #[doc(hidden)]
 pub mod print;
@@ -91,6 +95,8 @@ pub struct SimpleDiff<'a> {
     pub(crate) right_expanded: Option<Cow<'a, str>>,
     pub(crate) left_label: &'static str,
     pub(crate) right_label: &'static str,
+    pub(crate) left_expr: &'static str,
+    pub(crate) right_expr: &'static str,
 }
 
 impl<'a> SimpleDiff<'a> {
@@ -112,6 +118,8 @@ impl<'a> SimpleDiff<'a> {
             right_expanded: None,
             left_label,
             right_label,
+            left_expr: "expr",
+            right_expr: "expr",
         }
     }
 
@@ -123,6 +131,8 @@ impl<'a> SimpleDiff<'a> {
         right_expanded: Option<Cow<'a, str>>,
         left_label: &'static str,
         right_label: &'static str,
+        left_expr: &'static str,
+        right_expr: &'static str,
     ) -> SimpleDiff<'a> {
         SimpleDiff {
             left_short: left_short.unwrap_or_else(|| "<unprintable object>".into()),
@@ -131,6 +141,8 @@ impl<'a> SimpleDiff<'a> {
             right_expanded,
             left_label,
             right_label,
+            left_expr,
+            right_expr,
         }
     }
 
@@ -157,16 +169,18 @@ impl<'a> SimpleDiff<'a> {
     pub fn fail_assertion(&self, hint: &dyn Display) {
         panic!(
             "assertion failed: `({} == {})`{}'\
-               \n {:>label_padding$}: `{:?}`\
-               \n {:>label_padding$}: `{:?}`\
+               \n {:>label_padding$}: `{}` = {}\
+               \n {:>label_padding$}: `{}` = {}\
                \n\n{}\n",
             self.left_label,
             self.right_label,
             hint,
             self.left_label,
-            self.left(),
+            style(self.left_expr).yellow(),
+            style(&self.left_short).cyan(),
             self.right_label,
-            self.right(),
+            style(self.right_expr).yellow(),
+            style(&self.right_short).cyan(),
             &self,
             label_padding = self.label_padding(),
         );
@@ -316,6 +330,8 @@ macro_rules! __assert_eq {
                     use $crate::print::{PrintMode, PrintObject};
                     let left_label = stringify!($left_label);
                     let right_label = stringify!($right_label);
+                    let left_expr = $crate::__stringify!($left);
+                    let right_expr = $crate::__stringify!($right);
                     let mut left_val_tup1 = (&left_val,);
                     let mut right_val_tup1 = (&right_val,);
                     let mut left_val_tup2 = (&left_val,);
@@ -331,6 +347,8 @@ macro_rules! __assert_eq {
                         right_expanded,
                         left_label,
                         right_label,
+                        left_expr,
+                        right_expr,
                     );
                     diff.fail_assertion(&$hint_suffix);
                 }
@@ -368,6 +386,33 @@ macro_rules! assert_eq {
         $crate::assert_eq!(left: $left, right: $right, $($arg)*);
     });
 }
+
+#[cfg(feature = "magic")]
+#[macro_export]
+macro_rules! assert {
+    ($($tokens:tt)*) => {
+		$crate::magic::assert_impl!($crate, $($tokens)*)
+    }
+}
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __stringify {
+	($e:expr) => {
+		// Stringifying as an expression gives nicer output
+		// than stringifying a raw list of token trees.
+		$crate::__core_stringify!($e)
+	};
+	($($t:tt)*) => {
+		$crate::__core_stringify!($($t)*)
+	};
+}
+
+#[doc(hidden)]
+pub use core::stringify as __core_stringify;
+
+// this is used by a macro. move?
+pub use console::style as __style;
 
 #[test]
 fn test_newlines_matter() {

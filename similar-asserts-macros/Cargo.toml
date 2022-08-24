@@ -1,0 +1,22 @@
+[package]
+name = "similar-asserts-macros"
+description = "procedural macros for similar-asserts"
+version = "1.5.0"
+license = "BSD-2-Clause"
+authors = [
+	"Maarten de Vries <maarten@de-vri.es>",
+	"Mara Bos <m-ou.se@m-ou.se>",
+	"Armin Ronacher <armin.ronacher@active-4.com>"
+]
+
+edition = "2018"
+repository = "https://github.com/mitsuhiko/similar-asserts"
+documentation = "https://docs.rs/similar-asserts"
+
+[lib]
+proc-macro = true
+
+[dependencies]
+proc-macro2 = "1.0.7"
+quote = "1.0.2"
+syn = { version = "1.0.13", features = ["full", "visit", "visit-mut"] }
