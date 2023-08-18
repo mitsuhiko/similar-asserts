@@ -369,6 +369,25 @@ macro_rules! assert_eq {
     });
 }
 
+/// Deprecated macro.  Use [`assert_eq!`] instead.
+#[macro_export]
+#[doc(hidden)]
+#[deprecated(since = "1.4.0", note = "use assert_eq! instead")]
+macro_rules! assert_str_eq {
+    ($left_label:ident: $left:expr, $right_label:ident: $right:expr $(,)?) => ({
+        $crate::assert_eq!($left_label: $left, $right_label: $right);
+    });
+    ($left_label:ident: $left:expr, $right_label:ident: $right:expr, $($arg:tt)*) => ({
+        $crate::assert_eq!($left_label: $left, $right_label: $right, $($arg)*);
+    });
+    ($left:expr, $right:expr $(,)?) => ({
+        $crate::assert_eq!($left, $right);
+    });
+    ($left:expr, $right:expr, $($arg:tt)*) => ({
+        $crate::assert_eq!($left, $right, $($arg)*);
+    });
+}
+
 #[test]
 fn test_newlines_matter() {
     assert!(newlines_matter("\r\n", "\n"));
