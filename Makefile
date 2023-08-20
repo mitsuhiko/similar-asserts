@@ -15,10 +15,6 @@ test: check
 	@cargo test --all-features
 	@cargo test --no-default-features
 
-test-146:
-	@cargo test
-	@cargo test --no-default-features
-
 format:
 	@rustup component add rustfmt 2> /dev/null
 	@cargo fmt --all
