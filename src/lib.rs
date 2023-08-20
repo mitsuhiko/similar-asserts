@@ -53,6 +53,13 @@
 //! opt-level = 3
 //! ```
 //!
+//! # String Truncation
+//!
+//! By default the assertion only shows 200 characters.  This can be changed with the
+//! `SIMILAR_ASSERTS_MAX_STRING_LENGTH` environment variable.  Setting it to `0` disables
+//! all truncation, otherwise it sets the maximum number of characters before truncation
+//! kicks in.
+//!
 //! # Manual Diff Printing
 //!
 //! If you want to build your own comparison macros and you need a quick and simple
@@ -76,6 +83,22 @@ pub mod serde_impl;
 // This needs to be public as we are using it internally in a macro.
 #[doc(hidden)]
 pub mod print;
+
+/// The maximum number of characters a string can be long before truncating.
+fn get_max_string_length() -> usize {
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    static TRUNCATE: AtomicUsize = AtomicUsize::new(!0);
+    let rv = TRUNCATE.load(Ordering::Relaxed);
+    if rv != !0 {
+        return rv;
+    }
+    let rv: usize = std::env::var("SIMILAR_ASSERTS_MAX_STRING_LENGTH")
+        .ok()
+        .and_then(|x| x.parse().ok())
+        .unwrap_or(200);
+    TRUNCATE.store(rv, Ordering::Relaxed);
+    rv
+}
 
 /// A console printable diff.
 ///
@@ -155,21 +178,57 @@ impl<'a> SimpleDiff<'a> {
     #[doc(hidden)]
     #[track_caller]
     pub fn fail_assertion(&self, hint: &dyn Display) {
+        // prefer the shortened version here.
+        let len = get_max_string_length();
+        let (left, left_truncated) = truncate_str(&self.left_short, len);
+        let (right, right_truncated) = truncate_str(&self.right_short, len);
+
         panic!(
             "assertion failed: `({} == {})`{}'\
-               \n {:>label_padding$}: `{:?}`\
-               \n {:>label_padding$}: `{:?}`\
+               \n {:>label_padding$}: `{:?}`{}\
+               \n {:>label_padding$}: `{:?}`{}\
                \n\n{}\n",
             self.left_label,
             self.right_label,
             hint,
             self.left_label,
-            self.left(),
+            DebugStrTruncated(left, left_truncated),
+            if left_truncated { " (truncated)" } else { "" },
             self.right_label,
-            self.right(),
+            DebugStrTruncated(right, right_truncated),
+            if right_truncated { " (truncated)" } else { "" },
             &self,
             label_padding = self.label_padding(),
         );
+    }
+}
+
+fn truncate_str(s: &str, chars: usize) -> (&str, bool) {
+    if chars == 0 {
+        return (s, false);
+    }
+    s.char_indices()
+        .enumerate()
+        .find_map(|(idx, (offset, _))| {
+            if idx == chars {
+                Some((&s[..offset], true))
+            } else {
+                None
+            }
+        })
+        .unwrap_or((s, false))
+}
+
+struct DebugStrTruncated<'s>(&'s str, bool);
+
+impl<'s> fmt::Debug for DebugStrTruncated<'s> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if self.1 {
+            let s = format!("{}...", self.0);
+            fmt::Debug::fmt(&s, f)
+        } else {
+            fmt::Debug::fmt(&self.0, f)
+        }
     }
 }
 
@@ -403,4 +462,11 @@ fn test_newlines_matter() {
     assert!(!newlines_matter("foo\r\nbar", "foo\r\nbar"));
     assert!(!newlines_matter("foo\r\nbar\r\n", "foo\r\nbar\r\n"));
     assert!(!newlines_matter("foo\r\nbar", "foo\r\nbar"));
+}
+
+#[test]
+fn test_truncate_str() {
+    assert_eq!(truncate_str("foobar", 20), ("foobar", false));
+    assert_eq!(truncate_str("foobar", 2), ("fo", true));
+    assert_eq!(truncate_str("🔥🔥🔥🔥🔥", 2), ("🔥🔥", true));
 }
