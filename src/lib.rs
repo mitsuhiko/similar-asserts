@@ -112,8 +112,8 @@ pub struct SimpleDiff<'a> {
     pub(crate) right_short: Cow<'a, str>,
     pub(crate) left_expanded: Option<Cow<'a, str>>,
     pub(crate) right_expanded: Option<Cow<'a, str>>,
-    pub(crate) left_label: &'static str,
-    pub(crate) right_label: &'static str,
+    pub(crate) left_label: &'a str,
+    pub(crate) right_label: &'a str,
 }
 
 impl<'a> SimpleDiff<'a> {
@@ -125,8 +125,8 @@ impl<'a> SimpleDiff<'a> {
     pub fn from_str(
         left: &'a str,
         right: &'a str,
-        left_label: &'static str,
-        right_label: &'static str,
+        left_label: &'a str,
+        right_label: &'a str,
     ) -> SimpleDiff<'a> {
         SimpleDiff {
             left_short: left.into(),
@@ -144,8 +144,8 @@ impl<'a> SimpleDiff<'a> {
         right_short: Option<Cow<'a, str>>,
         left_expanded: Option<Cow<'a, str>>,
         right_expanded: Option<Cow<'a, str>>,
-        left_label: &'static str,
-        right_label: &'static str,
+        left_label: &'a str,
+        right_label: &'a str,
     ) -> SimpleDiff<'a> {
         SimpleDiff {
             left_short: left_short.unwrap_or_else(|| "<unprintable object>".into()),
