@@ -11,6 +11,7 @@
 - [`assert_serde_eq!`]: diffs `Serialize` on assertion failure.
 "#
 )]
+//!
 //! ![](https://raw.githubusercontent.com/mitsuhiko/similar-asserts/main/assets/screenshot.png)
 //!
 //! # Usage
