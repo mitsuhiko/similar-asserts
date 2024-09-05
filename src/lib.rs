@@ -271,6 +271,7 @@ fn detect_newlines(s: &str) -> (bool, bool, bool) {
     (detected_cr, detected_crlf, detected_lf)
 }
 
+#[allow(clippy::match_like_matches_macro)]
 fn newlines_matter(left: &str, right: &str) -> bool {
     if trailing_newline(left) != trailing_newline(right) {
         return true;
