@@ -1,6 +1,5 @@
 # similar-asserts
 
-[![Build Status](https://github.com/mitsuhiko/similar-asserts/workflows/Tests/badge.svg?branch=main)](https://github.com/mitsuhiko/similar-asserts/actions?query=workflow%3ATests)
 [![Crates.io](https://img.shields.io/crates/d/similar-asserts.svg)](https://crates.io/crates/similar-asserts)
 [![License](https://img.shields.io/github/license/mitsuhiko/similar-asserts)](https://github.com/mitsuhiko/similar-asserts/blob/main/LICENSE)
 [![Documentation](https://docs.rs/similar-asserts/badge.svg)](https://docs.rs/similar-asserts)
