@@ -2,6 +2,10 @@
 
 All notable changes to `similar-asserts` are documented here.
 
+## 1.6.1
+
+- Maintenance release with some clippy fixes.
+
 ## 1.6.0
 
 - Loosen static lifetime bounds for labels. #9
