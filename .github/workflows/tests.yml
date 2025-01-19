@@ -28,5 +28,7 @@ jobs:
           toolchain: 1.56.0
           profile: minimal
           override: true
+      - name: Use Cargo.lock.msrv
+        run: cp Cargo.lock.msrv Cargo.lock
       - name: Test
         run: make test
