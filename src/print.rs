@@ -5,7 +5,7 @@ pub trait StringRepr: AsRef<str> {}
 
 impl StringRepr for str {}
 impl StringRepr for String {}
-impl<'a> StringRepr for Cow<'a, str> {}
+impl StringRepr for Cow<'_, str> {}
 impl<T: StringRepr + ?Sized> StringRepr for &T {}
 
 /// Defines how the object is printed.

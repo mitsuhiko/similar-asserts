@@ -222,7 +222,7 @@ fn truncate_str(s: &str, chars: usize) -> (&str, bool) {
 
 struct DebugStrTruncated<'s>(&'s str, bool);
 
-impl<'s> fmt::Debug for DebugStrTruncated<'s> {
+impl fmt::Debug for DebugStrTruncated<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if self.1 {
             let s = format!("{}...", self.0);
@@ -289,7 +289,7 @@ fn newlines_matter(left: &str, right: &str) -> bool {
     }
 }
 
-impl<'a> fmt::Display for SimpleDiff<'a> {
+impl fmt::Display for SimpleDiff<'_> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let left = self.left();
         let right = self.right();
