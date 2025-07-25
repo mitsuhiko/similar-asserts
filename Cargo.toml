@@ -20,7 +20,7 @@ unicode = ["similar/unicode"]
 
 [dependencies]
 similar = { version = "2.2.0", features = ["inline"] }
-console = { version = "0.15.0", default-features = false }
+console = { version = "0.16.0", default-features = false, features = ["std"] }
 serde = { version = "1.0.123", optional = true }
 
 [dev-dependencies]
