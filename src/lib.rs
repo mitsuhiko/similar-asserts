@@ -198,7 +198,7 @@ impl<'a> SimpleDiff<'a> {
         let (right, right_truncated) = truncate_str(&self.right_short, len);
 
         panic!(
-            "assertion failed: `({} == {})`{}'\
+            "assertion failed: `({} == {})`{}\
                \n {:>label_padding$}: `{:?}`{}\
                \n {:>label_padding$}: `{:?}`{}\
                \n\n{}\n",
