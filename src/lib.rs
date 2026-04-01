@@ -81,7 +81,7 @@ use std::fmt::{self, Display};
 use std::sync::OnceLock;
 use std::time::Duration;
 
-use console::{style, Style};
+use console::{Style, style};
 use similar::{Algorithm, ChangeTag, TextDiff};
 
 #[cfg(feature = "serde")]
