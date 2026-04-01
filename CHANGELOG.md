@@ -4,8 +4,10 @@ All notable changes to `similar-asserts` are documented here.
 
 ## Unreleased
 
-- Raised the crate to Rust 2021 and updated MSRV to Rust 1.71.
-- Updated dependency baselines (`similar`, `console`, `serde`).
+## 2.0.0
+
+- Raised the crate edition to Rust 2024 and updated the MSRV to Rust 1.85.
+- Upgraded the `similar` dependency to `3.0.0`.
 - Modernized CI workflows to current GitHub Actions and added PR runs.
 - Replaced atomic env-var caching with `OnceLock`.
 - Minor documentation and wording fixes.
