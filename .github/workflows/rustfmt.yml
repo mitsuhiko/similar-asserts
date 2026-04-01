@@ -1,18 +1,22 @@
 name: Rustfmt
 
-on: [push]
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
 
 jobs:
-  build:
+  rustfmt:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v1
-      - uses: actions-rs/toolchain@v1
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: stable
-          profile: minimal
-          components: clippy, rustfmt
-          override: true
+          components: rustfmt
+      - uses: Swatinem/rust-cache@v2
       - name: Run rustfmt
         run: make format-check

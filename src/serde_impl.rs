@@ -310,7 +310,7 @@ macro_rules! __assert_serde_eq {
     }};
 }
 
-/// Asserts that two expressions are equal to each other (using [`PartialEq`]) using [`Serialize`](serde::Serialize) for comparision.
+/// Asserts that two expressions are equal to each other (using [`PartialEq`]) using [`Serialize`](serde::Serialize) for comparison.
 ///
 /// On panic, this macro will print the values of the expressions with their
 /// serde [`Serialize`](serde::Serialize) representations rendered in the same

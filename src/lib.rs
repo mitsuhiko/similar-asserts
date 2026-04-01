@@ -46,7 +46,7 @@
 //! ```
 //!
 //! Since `similar_asserts` uses the `similar` library for diffing you can also
-//! enable optimziation for them in all build types for quicker diffing.  Add
+//! enable optimization for it in all build types for quicker diffing. Add
 //! this to your `Cargo.toml`:
 //!
 //! ```toml
@@ -78,7 +78,7 @@
 //! ```
 use std::borrow::Cow;
 use std::fmt::{self, Display};
-use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::OnceLock;
 use std::time::Duration;
 
 use console::{style, Style};
@@ -94,28 +94,24 @@ pub mod print;
 
 /// The maximum number of characters a string can be long before truncating.
 fn get_max_string_length() -> usize {
-    static TRUNCATE: AtomicUsize = AtomicUsize::new(!0);
+    static TRUNCATE: OnceLock<usize> = OnceLock::new();
     get_usize_from_env(&TRUNCATE, "SIMILAR_ASSERTS_MAX_STRING_LENGTH", 200)
 }
 
 /// The context size for diff groups.
 fn get_context_size() -> usize {
-    static CONTEXT_SIZE: AtomicUsize = AtomicUsize::new(!0);
+    static CONTEXT_SIZE: OnceLock<usize> = OnceLock::new();
     get_usize_from_env(&CONTEXT_SIZE, "SIMILAR_ASSERTS_CONTEXT_SIZE", 4)
 }
 
-/// Parse a `usize` value from an environment variable, cached in a static atomic.
-fn get_usize_from_env(value: &'static AtomicUsize, var: &str, default: usize) -> usize {
-    let rv = value.load(Ordering::Relaxed);
-    if rv != !0 {
-        return rv;
-    }
-    let rv: usize = std::env::var(var)
-        .ok()
-        .and_then(|x| x.parse().ok())
-        .unwrap_or(default);
-    value.store(rv, Ordering::Relaxed);
-    rv
+/// Parse a `usize` value from an environment variable, cached in a static once cell.
+fn get_usize_from_env(value: &'static OnceLock<usize>, var: &str, default: usize) -> usize {
+    *value.get_or_init(|| {
+        std::env::var(var)
+            .ok()
+            .and_then(|x| x.parse().ok())
+            .unwrap_or(default)
+    })
 }
 
 /// A console printable diff.
@@ -288,7 +284,6 @@ fn detect_newlines(s: &str) -> (bool, bool, bool) {
     (detected_cr, detected_crlf, detected_lf)
 }
 
-#[allow(clippy::match_like_matches_macro)]
 fn newlines_matter(left: &str, right: &str) -> bool {
     if trailing_newline(left) != trailing_newline(right) {
         return true;
@@ -297,13 +292,12 @@ fn newlines_matter(left: &str, right: &str) -> bool {
     let (cr1, crlf1, lf1) = detect_newlines(left);
     let (cr2, crlf2, lf2) = detect_newlines(right);
 
-    match (cr1 || cr2, crlf1 || crlf2, lf1 || lf2) {
-        (false, false, false) => false,
-        (true, false, false) => false,
-        (false, true, false) => false,
-        (false, false, true) => false,
-        _ => true,
-    }
+    let newline_styles = [cr1 || cr2, crlf1 || crlf2, lf1 || lf2]
+        .into_iter()
+        .filter(|present| *present)
+        .count();
+
+    newline_styles > 1
 }
 
 impl fmt::Display for SimpleDiff<'_> {
